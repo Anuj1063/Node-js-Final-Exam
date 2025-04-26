@@ -2,8 +2,8 @@ const userModel = require("../models/user.model");
 
 const sendEmailVerificationOTP = require("../helper/emailOtpVerify");
 
-const emailVerifyModel=require('../models/otp.model')
-
+const emailVerifyModel = require("../models/otp.model");
+const deleteFile=require('../helper/deleteFile')
 
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -12,9 +12,12 @@ class AuthController {
   async signupUser(req, res) {
     try {
       const { name, password, email } = req.body;
+      const profilePic = req.file?.filename;
+
       const hasedPassword = await bcrypt.hash(password, 10);
 
-      if (!name || !password  || !email) {
+      if (!name || !password || !email || !profilePic) {
+        deleteFile("uploads/profile",profilePic)
         return res.status(400).json({
           success: false,
           message: "All Feild Required",
@@ -23,34 +26,35 @@ class AuthController {
 
       let isEmailExist = await userModel.findOne({ email });
       if (isEmailExist) {
+        deleteFile("uploads/profile",profilePic)
         return res.status(400).json({
           success: false,
           message: "Email Already Exists",
         });
       }
-  
 
       let user = await userModel.create({
         name,
         password: hasedPassword,
         email,
+        profilePic,
       });
 
-      (sendEmailVerificationOTP(user));
-      
+      sendEmailVerificationOTP(user);
+
       if (user) {
         return res.status(200).json({
           success: true,
           message: "User Created Successfully",
           user: {
-            _id: user._id,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            email: user.email,
+            id:user._id,
+            name,
+            email,
+            profilePic,
           },
         });
       }
-    } catch (e) {
+    } catch (error) {
       console.error("Error in createUser:", error);
       return res.status(500).json({
         success: false,
@@ -96,13 +100,13 @@ class AuthController {
         });
       }
 
-     
       existingUser.isVerified = true;
       await existingUser.save();
-      
-      await emailVerifyModel.updateOne({ userId: existingUser._id },{
-          otp:""
-      });
+
+      await emailVerifyModel.deleteMany(
+        { userId: existingUser._id },
+        
+      );
 
       return res.status(200).json({
         status: true,
@@ -145,9 +149,13 @@ class AuthController {
           message: "Invalid credentials",
         });
       }
-      const token = jwt.sign({ userId: user._id,email:user.email }, process.env.JWT_SECRET, {
-        expiresIn: "1h",
-      });
+      const token = jwt.sign(
+        { id: user._id},
+        process.env.JWT_SECRET,
+        {
+          expiresIn: "1h",
+        }
+      );
 
       res.status(200).json({
         success: true,
@@ -155,8 +163,7 @@ class AuthController {
         token,
         user: {
           _id: user._id,
-          firstName: user.firstName,
-          lastName: user.lastName,
+          name:user.name,
           email: user.email,
         },
       });
@@ -165,6 +172,67 @@ class AuthController {
       res
         .status(500)
         .json({ success: false, message: "Internal server error" });
+    }
+  }
+
+
+
+  async userDetails(req,res){
+    try {
+      const{id}=req.params
+      
+      
+      let user=await userModel.findOne({_id:id})
+
+      if(user){
+        return res.status(200).json({
+          status:true,
+          message:"User Details Fetched Successfully",
+          user: {
+            id:user._id,
+            name:user.name,
+            isVerified:user.isVerified,
+            email:user.email,
+            profilePic:user.profilePic,
+          },
+        })
+      }
+      
+    } catch (err) {
+      console.log("Server Error",err)
+    }
+  }
+  async updateUser(req,res){
+    try {
+      const{id}=req.params;
+      const{name,email}=req.body;
+      const newProfilePic=req.file?.filename
+    
+      const existingUser=await userModel.findOne({_id:id})
+      if(!existingUser.isVerified){
+        return res.status(400).json({
+          status:false,
+          message:"User is not Verified"
+        })
+      }
+
+      const updatedFeild={name,email}
+
+      if(newProfilePic){
+        if(existingUser.profilePic){
+          deleteFile('uploads/profile',existingUser.profilePic)
+        }
+          updatedFeild.profilePic=newProfilePic
+
+      }
+      await userModel.updateOne({_id:id},updatedFeild)
+      return res.status(200).json({
+        message:"Updated SuccessFully",
+        updatedFeild
+      })
+
+    } catch (error) {
+      console.log("Something Went Worng",error)
     }
   }
 }

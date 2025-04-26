@@ -9,18 +9,11 @@ app.use(express.json())
 
 
 
-// app.use((req, res, next) => {
-//     let auth = require('./middlewares/auth')(req, res, next)
-//     app.use(auth.initialize());
-//     if (req.session.token && req.session.token != null) {
-//         req.headers['token'] = req.session.token;
-//     }
-//     res.locals.success_message = req.flash("success");
-//     res.locals.error_message = req.flash("error");
-//     next();
-// });
+
 
 app.use('/api/user',require('./routes/auth.route'))
+app.use('/api/category',require('./routes/category.route'))
+app.use('/api/product',require('./routes/product.route'))
 
 
 

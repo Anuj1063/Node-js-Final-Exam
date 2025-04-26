@@ -12,7 +12,6 @@ const sendEmailVerificationOTP=async( user)=>{
   // create OTP in Database
   const otpRecord=await otpVerifyModel.create({ userId: user._id, otp: otp })
   console.log(otpRecord,"Otp Record")
-  
 
   
 
