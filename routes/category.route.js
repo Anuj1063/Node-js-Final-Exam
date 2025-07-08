@@ -4,7 +4,7 @@ const authCheck=require('../middleware/auth.middleware')()
 
 
 
-router.post("/create",authCheck.authenticateAPI,categoryController.createCategory)
-router.get("/list",authCheck.authenticateAPI,categoryController.categoryList)
+router.post("/create",authCheck.authenticateAPI,categoryController.addCategory)
+router.get("/list",authCheck.authenticateAPI,categoryController.listCategoriesWithPosts)
 
 module.exports=router

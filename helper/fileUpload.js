@@ -35,7 +35,9 @@ class ProfileUploader {
   // Set up file filter to only accept the supported file types
   fileFilter() {
     return (req, file, callback) => {
+     
       if (this.supportedFiles.includes(file.mimetype)) {
+     
         callback(null, true);
       } else {
         console.log(

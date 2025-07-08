@@ -11,9 +11,12 @@ app.use(express.json())
 
 
 
-app.use('/api/user',require('./routes/auth.route'))
-app.use('/api/category',require('./routes/category.route'))
-app.use('/api/product',require('./routes/product.route'))
+app.use('/api/auth',require('./routes/auth.route'))
+app.use('/api/user',require('./routes/user.route'))
+app.use('/api/user/category',require('./routes/category.route'))
+app.use('/api/user/post',require('./routes/post.route'))
+app.use('/api/user/like',require('./routes/like.route'))
+app.use('/api/user/comment',require('./routes/comment.route'))
 
 
 

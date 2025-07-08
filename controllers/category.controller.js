@@ -1,89 +1,84 @@
 const categoryModel = require("../models/category.model");
 
 class CategoryController {
-  async createCategory(req, res) {
+  async addCategory(req, res) {
     try {
-      const { name } = req.body;
+     
+
+      const { name, description } = req.body;
 
       if (!name) {
+        return res
+          .status(400)
+          .json({ message: "Please provide a category name." });
+      }
+      if (!description) {
+        return res
+          .status(400)
+          .json({ message: "Please provide a category description." });
+      }
+      const isCategoryExist=await categoryModel.findOne({name})
+      if(isCategoryExist){
         return res.status(400).json({
-          status: false,
-          message: "Name is Required",
-        });
-      }
-      const isNameExist = await categoryModel.findOne({ name });
-
-      if (isNameExist) {
-        return res.status(400).json({
-          status: false,
-          message: "Name Already Exist",
-        });
+          message:"Category Already exits"
+        })
       }
 
-      const category = await categoryModel.create({ name });
-      if (category) {
-        return res.status(201).json({
-          status: false,
-          message: "Category Created Successfully",
-          category,
-        });
-      }
-    } catch (e) {
-      console.log("Server Error", e);
+      await categoryModel.create({ name, description });
+
+      return res.status(201).json({
+        message: "Category created successfully.",
+        data: { name, description },
+      });
+    } catch (error) {
+      console.log(error.message);
+      res.status(500).json({ message: "Something went wrong." });
     }
   }
 
-  async categoryList(req, res) {
+  async listCategoriesWithPosts(req, res) {
     try {
-      const category = await categoryModel.aggregate([
-        {
-          $match: { isDeleted: false },
-        },
+      const categories = await categoryModel.aggregate([
         {
           $lookup: {
-            from: "products",
-            let: { categoryId: "$_id" },
+            from: "posts",
+            let: { catId: "$_id" },
             pipeline: [
               {
                 $match: {
-                  $expr: {
-                    $and: [
-                      { $eq: ["$isDeleted", false] },
-                      { $eq: ["$categoryId", "$$categoryId"] },
-                    ],
-                  },
+                  $expr: { $eq: ["$categoryId", "$$catId"] },
                 },
               },
               {
                 $project: {
-                  name: 1,
-                  price: 1,
-                  stocks: 1,
+                  title: 1,
+                  content: 1,
+                  tags: 1,
+                  userId: 1,
                 },
               },
             ],
-
-            as: "productDetails",
+            as: "posts",
           },
         },
         {
           $project: {
-            categoryName: "$name",
-            totalProduct: {
-              $size: "$productDetails",
-            },
-            productData: "$productDetails",
+            name: 1,
+            posts: 1,
+            totalPosts: { $size: "$posts" },
           },
         },
       ]);
 
-      if (category) {
-        return res.status(200).json({
-          category,
-        });
-      }
+      // Returning response with success message and fetched data
+      return res.status(200).json({
+        message: "Categories fetched successfully.",
+        data: categories,
+      });
     } catch (error) {
-      console.log("Something Went Worng", error);
+      // Logging and returning error if something goes wrong
+      console.log(error.message);
+      res.status(500).json({ message: "Something went wrong." });
     }
   }
 }

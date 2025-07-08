@@ -3,21 +3,24 @@ const userModel = require("../models/user.model");
 const sendEmailVerificationOTP = require("../helper/emailOtpVerify");
 
 const emailVerifyModel = require("../models/otp.model");
-const deleteFile=require('../helper/deleteFile')
+
 
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
+
+
 class AuthController {
   async signupUser(req, res) {
     try {
-      const { name, password, email } = req.body;
-      const profilePic = req.file?.filename;
+      const { firstName,lastName,bio, password, email } = req.body;
+ 
+      const profilePic = req.file.filename;
 
       const hasedPassword = await bcrypt.hash(password, 10);
 
-      if (!name || !password || !email || !profilePic) {
-        deleteFile("uploads/profile",profilePic)
+      if (!firstName ||!lastName||!bio|| !password || !email || !profilePic) {
+        deleteFile("uploads/profile", profilePic);
         return res.status(400).json({
           success: false,
           message: "All Feild Required",
@@ -26,36 +29,36 @@ class AuthController {
 
       let isEmailExist = await userModel.findOne({ email });
       if (isEmailExist) {
-        deleteFile("uploads/profile",profilePic)
+        deleteFile("uploads/profile", profilePic);
         return res.status(400).json({
           success: false,
           message: "Email Already Exists",
         });
       }
 
+     
       let user = await userModel.create({
-        name,
+        firstName,
+        lastName,
         password: hasedPassword,
         email,
+        bio,
         profilePic,
       });
-
+     
+      
       sendEmailVerificationOTP(user);
 
       if (user) {
         return res.status(200).json({
           success: true,
           message: "User Created Successfully",
-          user: {
-            id:user._id,
-            name,
-            email,
-            profilePic,
-          },
+          user
         });
       }
     } catch (error) {
       console.error("Error in createUser:", error);
+      deleteFile("uploads/profile", profilePic);
       return res.status(500).json({
         success: false,
         message: "Something went wrong. Please try again.",
@@ -103,10 +106,7 @@ class AuthController {
       existingUser.isVerified = true;
       await existingUser.save();
 
-      await emailVerifyModel.deleteMany(
-        { userId: existingUser._id },
-        
-      );
+      await emailVerifyModel.deleteMany({ userId: existingUser._id });
 
       return res.status(200).json({
         status: true,
@@ -149,13 +149,9 @@ class AuthController {
           message: "Invalid credentials",
         });
       }
-      const token = jwt.sign(
-        { id: user._id},
-        process.env.JWT_SECRET,
-        {
-          expiresIn: "1h",
-        }
-      );
+      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+        expiresIn: "1h",
+      });
 
       res.status(200).json({
         success: true,
@@ -163,8 +159,11 @@ class AuthController {
         token,
         user: {
           _id: user._id,
-          name:user.name,
+          firstName: user.firstName,
+          lastName:user.lastName,
           email: user.email,
+          bio:user.bio
+
         },
       });
     } catch (e) {
@@ -175,66 +174,7 @@ class AuthController {
     }
   }
 
-
-
-  async userDetails(req,res){
-    try {
-      const{id}=req.params
-      
-      
-      let user=await userModel.findOne({_id:id})
-
-      if(user){
-        return res.status(200).json({
-          status:true,
-          message:"User Details Fetched Successfully",
-          user: {
-            id:user._id,
-            name:user.name,
-            isVerified:user.isVerified,
-            email:user.email,
-            profilePic:user.profilePic,
-          },
-        })
-      }
-      
-    } catch (err) {
-      console.log("Server Error",err)
-    }
-  }
-  async updateUser(req,res){
-    try {
-      const{id}=req.params;
-      const{name,email}=req.body;
-      const newProfilePic=req.file?.filename
-    
-      const existingUser=await userModel.findOne({_id:id})
-      if(!existingUser.isVerified){
-        return res.status(400).json({
-          status:false,
-          message:"User is not Verified"
-        })
-      }
-
-      const updatedFeild={name,email}
-
-      if(newProfilePic){
-        if(existingUser.profilePic){
-          deleteFile('uploads/profile',existingUser.profilePic)
-        }
-          updatedFeild.profilePic=newProfilePic
-
-      }
-      await userModel.updateOne({_id:id},updatedFeild)
-      return res.status(200).json({
-        message:"Updated SuccessFully",
-        updatedFeild
-      })
-
-    } catch (error) {
-      console.log("Something Went Worng",error)
-    }
-  }
+ 
 }
 
 module.exports = new AuthController();
